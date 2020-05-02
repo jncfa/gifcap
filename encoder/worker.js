@@ -20,7 +20,7 @@ function process() {
       self.postMessage(result.buffer, { transfer: [result.buffer] });
     }, 'vii');
 
-    Module['_encoder_new_frame'](id, opts.width, opts.height, ptr, frame.delay / 10, cb);
+    Module['_encoder_new_frame'](id, opts.inputWidth, opts.inputHeight, opts.width, opts.height, ptr, frame.delay / 10, cb);
   }
 }
 

@@ -1,7 +1,9 @@
 class GifEncoder {
 
   constructor(opts) {
-    this.opts = opts;
+    this.width = typeof opts.scale == 'number' ? Math.floor(opts.width * opts.scale) : opts.width;
+    this.height = typeof opts.scale == 'number' ? Math.floor(opts.height * opts.scale) : opts.height;
+
     this.listeners = new Map();
 
     this.frames = [];
@@ -13,7 +15,12 @@ class GifEncoder {
 
     for (let i = 0; i < navigator.hardwareConcurrency; i++) {
       const worker = new Worker('/encoder/worker.js');
-      worker.postMessage(opts);
+      worker.postMessage({
+        inputWidth: opts.width,
+        inputHeight: opts.height,
+        width: this.width,
+        height: this.height
+      });
 
       const onMessage = msg => this._onWorkerMessage(i, msg);
       worker.addEventListener('message', onMessage);
@@ -50,7 +57,7 @@ class GifEncoder {
     if (this.framesReceived === this.totalFrames) {
       const content = [
         'GIF89a',
-        new Uint16Array([this.opts.width, this.opts.height]),
+        new Uint16Array([this.width, this.height]),
         new Uint8Array([0x70, 255, 0]),
         new Uint8Array([0x21, 0xff, 0x0b]),
         'NETSCAPE2.0',

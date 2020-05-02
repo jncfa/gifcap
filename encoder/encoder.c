@@ -29,39 +29,40 @@ inline Gif_Colormap *create_colormap_from_palette(const liq_palette *palette)
 }
 
 EMSCRIPTEN_KEEPALIVE
-void encoder_new_frame(int id, int width, int height, void *image_data, int delay, void (*cb)(void *, int))
+void encoder_new_frame(int id, int input_width, int input_height, int width, int height, void *image_data, int delay, void (*cb)(void *, int))
 {
   liq_attr *attr = liq_attr_create();
-  liq_image *raw_image = liq_image_create_rgba(attr, image_data, width, height, 0);
+  liq_image *raw_image = liq_image_create_rgba(attr, image_data, input_width, input_height, 0);
   liq_result *res = liq_quantize_image(attr, raw_image);
   liq_attr_destroy(attr);
 
   const liq_palette *palette = liq_get_palette(res);
   Gif_Stream *stream = Gif_NewStream();
-  stream->screen_width = width;
-  stream->screen_height = height;
+  stream->screen_width = input_width;
+  stream->screen_height = input_height;
   stream->loopcount = 0;
 
   Gif_Image *image = Gif_NewImage();
-  image->width = width;
-  image->height = height;
+  image->width = input_width;
+  image->height = input_height;
   image->delay = delay;
   image->local = create_colormap_from_palette(palette);
   Gif_CreateUncompressedImage(image, 0);
-  liq_write_remapped_image(res, raw_image, image->image_data, width * height);
+  liq_write_remapped_image(res, raw_image, image->image_data, input_width * input_height);
   liq_result_destroy(res);
   liq_image_destroy(raw_image);
 
-  Gif_CompressInfo compress_info = {.flags = 0, .loss = 20};
-  Gif_FullCompressImage(stream, image, &compress_info);
-  Gif_ReleaseUncompressedImage(image);
+  Gif_AddImage(stream, image);
 
+  if (input_width != width || input_height != height)
+    resize_stream(stream, width, height, 0, SCALE_METHOD_MIX, 256);
+
+  Gif_CompressInfo compress_info = {.flags = 0, .loss = 20};
   Gif_Writer *writer = Gif_NewMemoryWriter(&compress_info);
   Gif_IncrementalWriteImage(writer, stream, image);
 
   cb(writer->v, writer->pos);
 
   Gif_DeleteMemoryWriter(writer);
-  Gif_DeleteImage(image);
   Gif_DeleteStream(stream);
 }
